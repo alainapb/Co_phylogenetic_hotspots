@@ -11,10 +11,37 @@ library(phytools)
 library(tidyverse)
 
 ###############################
-##          GMPD Data        ##
+##      Load the trees       ##
 ###############################
-data <- read.csv("GMPDsmall.csv")
+mam_tree <- read.tree("mammal_tree_clean.tre")
+para_tree <- read.tree("helminth_tree_clean.tre")
 
+#####################################################
+## Form S^{-1} for each term using the phylogenies ##
+#####################################################
+
+## S^{-1} is a phylogenetic covariance matrix with ancestral nodes retained 
+paraA <-inverseA(para_tree)$Ainv                                      # parasite main effect
+mamA <-inverseA(mam_tree)$Ainv                                        # host main effect
+mam.paraA <-as(kronecker(mamA, paraA), "dgCMatrix")                   # coevolutionary effect
+mam.paraAS <-as(kronecker(mamA, Diagonal(nrow(paraA))), "dgCMatrix")  # host evolutionary effect
+mam.paraSA <-as(kronecker(Diagonal(nrow(mamA)), paraA), "dgCMatrix")  # parasite evolutionary effect
+
+rownames(mam.paraA)<-apply(expand.grid(rownames(paraA), rownames(mamA)), 1, function(x){paste(x[2],x[1], sep=".")})
+rownames(mam.paraAS)<-rownames(mam.paraSA)<-rownames(mam.paraA)
+
+###############################
+##  Format the GMPD Data     ##
+###############################
+data <- read.csv("GMPD_clean.csv")
+
+# ## verify that we have concordance between the host phylogeny and the host data in the GMPD
+# unique(gsub(" ","_",data$HostCorrectedName))%in%mam_tree$tip.label %>% all
+# mam_tree$tip.label%in%unique(gsub(" ","_",data$HostCorrectedName)) %>% all
+# 
+# ## verify that we have concordance between the parasite phylogeny and the parasite data in the GMPD
+# unique(gsub(" ","_",data$ParasiteCorrectedName))%in%para_tree$tip.label %>% all
+# para_tree$tip.label%in%unique(gsub(" ","_",data$ParasiteCorrectedName)) %>% all
 
 ## create a new data.frame with all possible host-parasite combinations
 expand.grid(Host.species=(data$HostCorrectedName %>% unique),
@@ -30,8 +57,7 @@ ndata$Host.Parasite<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") 
 ndata$Host.Parasite.ide2<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") # phylogenetic host evolutionary effect
 ndata$Host.Parasite.ide3<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") # phylogenetic parasite evolutionary effect
 
-## Based on the code below, there are 997 unique host-parasite associations in the GMPD 
-## - the other 1600+ rows contain non-unique records of the same association
+## Based on the code below, there are 892 unique host-parasite associations in the GMPD 
 ## paste(gsub(" ", "_", data$HostCorrectedName), gsub(" ", "_", data$ParasiteCorrectedName), sep=".") %>% unique %>% length
 ##
 ## create a column called 'presence' that is '1' if the host-parasite combination
@@ -50,64 +76,6 @@ for (i in 1:nrow(data)) {
 }
 ndata$nhosts.sampled <- sapply(ndata$Host.species, function(h) sum(gsub(" ", "_", data$HostCorrectedName)==h))
 ndata$nparas.sampled <- sapply(ndata$Parasite.species, function(p) sum(gsub(" ", "_", data$ParasiteCorrectedName)==p))
-
-##
-
-##load trees
-mammal_tree<-read.tree("mammal_w_humans.trees") #191 taxa (includes homo sapiens)
-
-mam_tree<-read.tree("mam_tree.trees") #190 taxa
-
-para_tree<-read.tree("helminth_tree.trees") #249 taxa
-## need to make this tree ultrametric to use the method
-## however, you can see that it is *very* close to ultrametric as is
-library(ouch)
-as(ape2ouch(para_tree),"data.frame") %>% tail(.,100)
-## so while the code from Hadfield et al provides methods for making 
-## a tree ultrametric, having tried those methods out, there are far
-## too clunky to handle this situation, where I just need to round branch
-## lengths up by the tiniest amount
-## Liam Revell has a nice function for doing described on his website
-## http://blog.phytools.org/2017/03/forceultrametric-method-for-ultrametric.html
-## that is incorporated into the phytools packages
-para_tree2 <- force.ultrametric(para_tree, method='extend')
-## you can check to see how little this changes anything
-is.ultrametric(para_tree2)
-plot(para_tree, cex=0.2)
-plot(para_tree2, cex=0.2)
-para_tree <- para_tree2
-
-##########################################
-###            Sanity check            ###
-##########################################
-
-## are all hosts in the GMPD found in the mammal phylogeny?
-## No. There are 206 hosts in the GMPD. There are only 190 species 
-## in the mammal phylogeny.
-gsub(" ", "_", data$HostCorrectedName) %>% unique
-mam_tree$tip.label
-
-## are all parasites in the GMPD found in the parasite phylogeny?
-## No. There are 251 parasites in the GMPD. There are 249 species
-## in the parasite phylogeny.
-gsub(" ", "_", data$ParasiteCorrectedName) %>% unique
-para_tree$tip.label
-
-
-
-###############################
-## Form S^{-1} for each term ##
-###############################
-
-## S^{-1} is a phylogenetic covariance matrix with ancestral nodes retained 
-paraA <-inverseA(para_tree)$Ainv                                      # parasite main effect
-mamA <-inverseA(mam_tree)$Ainv                                        # host main effect
-mam.paraA <-as(kronecker(mamA, paraA), "dgCMatrix")                   # coevolutionary effect
-mam.paraAS <-as(kronecker(mamA, Diagonal(nrow(paraA))), "dgCMatrix")  # host evolutionary effect
-mam.paraSA <-as(kronecker(Diagonal(nrow(mamA)), paraA), "dgCMatrix")  # parasite evolutionary effect
-
-rownames(mam.paraA)<-apply(expand.grid(rownames(paraA), rownames(mamA)), 1, function(x){paste(x[2],x[1], sep=".")})
-rownames(mam.paraAS)<-rownames(mam.paraSA)<-rownames(mam.paraA)
 
 
 ################
@@ -129,7 +97,7 @@ priorI$G<-lapply(1:7, function(x){list(V=1, nu=1, alpha.mu=0, alpha.V=1000)})
 names(priorI$G)<-paste("G", 1:7, sep="")
 
 ## main model: includes controls for sampling effort
-mI.MCMCa<-MCMCglmm(presence~log(nhosts.sampled)+log(nparas.sampled), random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=100000, thin=400, burnin=20000)
+mI.MCMCa<-MCMCglmm(presence~log(nhosts.sampled)+log(nparas.sampled), random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=400000, thin=400, burnin=100000)
 save(mI.MCMCa, file=paste(paste(results.filepath, "mI.MCMCa", sep=.Platform$file.sep), ptree, format(Sys.time(), "%d-%m-%Y"), "R", sep="."))
 
 ## model b: does not control for sampling effort
@@ -204,9 +172,7 @@ k.tests<-cbind(c(chk, cpk), c(sum(chk>shk.l)/1000, sum(cpk>spk.l)/1000), c(sum(c
 rownames(k.tests)<-c("H", "P")
 colnames(k.tests)<-c("statistic", "L-pval", "H-pval")
 
-save(k.tests, file=paste(paste(results.filepath, "k.tests.", sep=.Platform$file.sep), ptree, ".Rdata", sep=""))
-
-}
+saveRDS(k.tests, file="k.tests.RDS")
 
 ######################################
 ## Run parafit on consolidated data ##
