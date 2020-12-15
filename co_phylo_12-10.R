@@ -101,8 +101,15 @@ mI.MCMCa<-MCMCglmm(presence~log(nhosts.sampled)+log(nparas.sampled), random=~Par
 save(mI.MCMCa, file=paste(paste(results.filepath, "mI.MCMCa", sep=.Platform$file.sep), ptree, format(Sys.time(), "%d-%m-%Y"), "R", sep="."))
 
 ## model b: does not control for sampling effort
-mI.MCMCb<-MCMCglmm(presence~1, random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=100000, thin=400, burnin=20000)
+mI.MCMCb<-MCMCglmm(presence~1, random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=400000, thin=400, burnin=100000)
 save(mI.MCMCb, file=paste(paste(results.filepath, "mI.MCMCb", sep=.Platform$file.sep), ptree, format(Sys.time(), "%d-%m-%Y"), "R", sep="."))
+
+## model c: does not control for sampling effort, and does not try to account for non-phylogenetic effects (trying to speed things up a bit)
+priorI2=list(R=list(V=1, fix=1))
+priorI2$G<-lapply(1:5, function(x){list(V=1, nu=1, alpha.mu=0, alpha.V=1000)})
+names(priorI2$G)<-paste("G", 1:5, sep="")
+mI.MCMCc<-MCMCglmm(presence~1, random=~Parasite.species+Host.species+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI2, slice=T, nitt=400000, thin=400, burnin=100000)
+
 
 ###################################################
 ## Run module on data (from Krasnov et al. 2012) ##
@@ -178,84 +185,87 @@ saveRDS(k.tests, file="k.tests.RDS")
 ## Run parafit on consolidated data ##
 ######################################
 
-if(run.parafit){
+## make sure you have a compiled Hommola.so available in this directory before running hommola()
+source("Hommola.R")
+
+# A matrices for host and parasite
+ht<-vcv(mam_tree, corr=T)
+pt<-vcv(para_tree, corr=T)
+
+Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
+# incidence data
+
+hi<-match(rownames(Y), rownames(ht))
+pi<-match(colnames(Y), rownames(pt))
   
-  ht<-vcv(host.tree, corr=T)
-  pt<-vcv(parasite.tree, corr=T)
-  # A matrices for host and parasite
+ht<-ht[hi,hi]
+pt<-pt[pi,pi]
+# reorder A matrices so match row/columns of Y
+
+htp<-pcoa(1-ht)$vectors
+ptp<-pcoa(1-pt)$vectors
+# get principal coordinate of phylogenetic distance matrix
+
+hte<-t(t(eigen(solve(ht))$vectors)*sqrt(eigen(solve(ht))$values))
+pte<-t(t(eigen(solve(pt))$vectors)*sqrt(eigen(solve(pt))$values))
+
+# get unnormalised eigenvectors of A
+lD<-t(htp)%*%Y%*%ptp
+iD<-t(hte)%*%(Y-mean(Y))%*%pte
+# D matrices (see Appendix) for Legendre and Ives methods
   
-  Y<-table(ndat$Host.species, ndat$Parasite.species, ndat$present)[,,2]>0
-  # incidence data
+cl<-sum(diag(t(lD)%*%lD))
+ci<-sum(diag(t(iD)%*%iD))
+ch<-hommola(Y, ht,pt)
+# metrics (see Appendix) of Legendre, Ives & Hommola
+
+sl.l<-1:1000
+si.l<-1:1000
+sh.l<-1:1000
+# stoing metrics of Legendre, Ives & Hommola after Legendre permutations  
+sl.h<-1:1000
+si.h<-1:1000
+sh.h<-1:1000
+# stoing metrics of Legendre, Ives & Hommola after Hommola permutations  
+
+##################
+## Permutations ##
+##################
+## Compute the Legendre, Ives, and Hommola metrics for randomly permuted 
+## incidence data. We do this twice, using different methods for performing
+## the permutation. The Legendre permutation simply generates a random permutation 
+## of the incidence data columnwise (e.g., since columns represent parasites, in the 
+## permuted data, each parasite infects the same number of hosts, but the identity
+## of those hosts has been randomly determined). The Hommola permutation
+for(j in 1:1000){
+  print(j)
   
-  hi<-match(rownames(Y), rownames(ht))
-  pi<-match(colnames(Y), rownames(pt))
+  Y2<-apply(Y, 2, sample)                     # Legendre permtations
   
-  ht<-ht[hi,hi]
-  pt<-pt[pi,pi]
-  # reorder A matrices so match row/columns of Y
+  lD<-t(htp)%*%Y2%*%ptp                       # Legendre D matrix
+  iD<-t(hte)%*%(Y2-mean(Y2))%*%pte            # Ives D matrix
   
-  htp<-pcoa(1-ht)$vectors
-  ptp<-pcoa(1-pt)$vectors
-  # get principal coordinate of phylogenetic distance matrix
+  sl.l[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
+  si.l[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
+  sh.l[j]<-hommola(Y2, ht,pt)                 # Hommola metric
   
-  hte<-t(t(eigen(solve(ht))$vectors)*sqrt(eigen(solve(ht))$values))
-  pte<-t(t(eigen(solve(pt))$vectors)*sqrt(eigen(solve(pt))$values))
+  Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
   
-  # get unnormalised eigenvectors of A
+  lD<-t(htp)%*%Y2%*%ptp
+  iD<-t(hte)%*%(Y2-mean(Y2))%*%pte
   
-  lD<-t(htp)%*%Y%*%ptp
-  iD<-t(hte)%*%(Y-mean(Y))%*%pte
-  # D matrices (see Appendix) for Legendre and Ives methods
-  
-  cl<-sum(diag(t(lD)%*%lD))
-  ci<-sum(diag(t(iD)%*%iD))
-  ch<-hommola(Y, ht,pt)
-  # metrics (see Appendix) of Legendre, Ives & Hommola
-  
-  sl.l<-1:1000
-  si.l<-1:1000
-  sh.l<-1:1000
-  # stoing metrics of Legendre, Ives & Hommola after Legendre permutations  
-  sl.h<-1:1000
-  si.h<-1:1000
-  sh.h<-1:1000
-  # stoing metrics of Legendre, Ives & Hommola after Hommola permutations  
-  
-  ##################
-  ## Permutations ##
-  ##################
-  
-  for(j in 1:1000){
-    
-    Y2<-apply(Y, 2, sample)                     # Legendre permtations
-    
-    lD<-t(htp)%*%Y2%*%ptp                       # Legendre D matrix
-    iD<-t(hte)%*%(Y2-mean(Y2))%*%pte            # Ives D matrix
-    
-    sl.l[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
-    si.l[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
-    sh.l[j]<-hommola(Y2, ht,pt)                 # Hommola metric
-    
-    Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
-    
-    lD<-t(htp)%*%Y2%*%ptp
-    iD<-t(hte)%*%(Y2-mean(Y2))%*%pte
-    
-    sl.h[j]<-sum(diag(t(lD)%*%lD)) 
-    si.h[j]<-sum(diag(t(iD)%*%iD)) 
-    sh.h[j]<-hommola(Y2, ht,pt)    
-  }
-  
-  other.tests<-cbind(c(cl, ci, ch), c(sum(cl<sl.l)/1000, sum(ci>si.l)/1000, sum(ch<sh.l)/1000), c(sum(cl<sl.h)/1000, sum(ci>si.h)/1000, sum(ch<sh.h)/1000))
-  # store metrics, and the proportion of times the metrics under permutation were greater 
-  
-  rownames(other.tests)<-c("L", "I", "H")
-  colnames(other.tests)<-c("statistic", "L-pval", "H-pval")
-  
-  save(other.tests, file=paste(paste(results.filepath, "other.tests.", sep=.Platform$file.sep), ptree, ".Rdata",sep=""))
+  sl.h[j]<-sum(diag(t(lD)%*%lD)) 
+  si.h[j]<-sum(diag(t(iD)%*%iD)) 
+  sh.h[j]<-hommola(Y2, ht,pt)    
 }
 
+other.tests<-cbind(c(cl, ci, ch), c(sum(cl<sl.l)/1000, sum(ci>si.l)/1000, sum(ch<sh.l)/1000), c(sum(cl<sl.h)/1000, sum(ci>si.h)/1000, sum(ch<sh.h)/1000))
+# store metrics, and the proportion of times the metrics under permutation were greater 
 
+rownames(other.tests)<-c("L", "I", "H")
+colnames(other.tests)<-c("statistic", "L-pval", "H-pval")
+
+saveRDS(other.tests, file="other.tests.RDS")
 
 ## Another analysis to potentially run: we can compare the host ranges of two parasites
 ## by computing the phylogenetic distance between the hosts of two parasites. The smaller
