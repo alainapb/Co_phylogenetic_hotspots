@@ -57,7 +57,7 @@ ndata$Host.Parasite<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") 
 ndata$Host.Parasite.ide2<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") # phylogenetic host evolutionary effect
 ndata$Host.Parasite.ide3<-paste(ndata$Host.species, ndata$Parasite.species, sep=".") # phylogenetic parasite evolutionary effect
 
-## Based on the code below, there are 892 unique host-parasite associations in the GMPD 
+## Based on the code below, there are 971 unique host-parasite associations in the GMPD 
 ## paste(gsub(" ", "_", data$HostCorrectedName), gsub(" ", "_", data$ParasiteCorrectedName), sep=".") %>% unique %>% length
 ##
 ## create a column called 'presence' that is '1' if the host-parasite combination
@@ -97,11 +97,11 @@ priorI$G<-lapply(1:7, function(x){list(V=1, nu=1, alpha.mu=0, alpha.V=1000)})
 names(priorI$G)<-paste("G", 1:7, sep="")
 
 ## main model: includes controls for sampling effort
-mI.MCMCa<-MCMCglmm(presence~log(nhosts.sampled)+log(nparas.sampled), random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=400000, thin=400, burnin=100000)
+mI.MCMCa<-MCMCglmm(presence~log(nhosts.sampled)+log(nparas.sampled), random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=100000, thin=400, burnin=40000)
 save(mI.MCMCa, file=paste(paste(results.filepath, "mI.MCMCa", sep=.Platform$file.sep), ptree, format(Sys.time(), "%d-%m-%Y"), "R", sep="."))
 
 ## model b: does not control for sampling effort
-mI.MCMCb<-MCMCglmm(presence~1, random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=400000, thin=400, burnin=100000)
+mI.MCMCb<-MCMCglmm(presence~1, random=~Parasite.species+Host.species+Parasite.species.ide+Host.species.ide+Host.Parasite+Host.Parasite.ide2+Host.Parasite.ide3,family="categorical", data=ndata, ginverse=list(Parasite.species=paraA, Host.species=mamA, Host.Parasite=mam.paraA, Host.Parasite.ide2=mam.paraAS, Host.Parasite.ide3=mam.paraSA), prior=priorI, slice=T, nitt=100000, thin=400, burnin=40000)
 save(mI.MCMCb, file=paste(paste(results.filepath, "mI.MCMCb", sep=.Platform$file.sep), ptree, format(Sys.time(), "%d-%m-%Y"), "R", sep="."))
 
 ## model c: does not control for sampling effort, and does not try to account for non-phylogenetic effects (trying to speed things up a bit)
