@@ -17,7 +17,9 @@ Given an observed pattern of host-parasite associations and phylogenies for the 
 
 ##### Methods and results 
 
-The data for this analysis is comprised of three things: (1) an incidence matrix where 1 represents an occurrence of a particular host-parasite interaction in the GMPD database, and a zero indicates ; (2) a host phylogeny; (3) a parasite phylogeny. 
+The data for this analysis is comprised of three things: (1) an incidence matrix of host-parasite interactions; (2) a host phylogeny; (3) a parasite phylogeny. 
+To determine whether there are any general patterns in the effect of host and parasite (co)evolution on host-parasite interactions, we work with two different datasets of host-parasite interaction: the first comes from the Global Mammal Parasite Database, and the second from a database of museum-verified Nearctic host-parasite associations.
+Additionally, we analyze these patterns using only the data on Primate-parasite associations in the GMPD.
 With these data, we can carry out several different co-phylogenetic analyses using different methods that have been proposed in the literature.
 
 ```{r}
@@ -26,26 +28,19 @@ library(gdata)
 library(igraph)
 library(phytools)
 library(tidyverse)
+library(picante)
 #library(brms)
 
 ###############################
 ##      Load the trees       ##
 ###############################
-mam_tree <- read.tree("mammal_tree_clean.tre")
-para_tree <- read.tree("helminth_tree_clean.tre")
+gmpd_mam_tree <- read.tree("mammal_tree_clean.tre")
+gmpd_para_tree <- read.tree("helminth_tree_clean.tre")
 
 ###############################
 ##  Format the GMPD Data     ##
 ###############################
 data <- read.csv("GMPD_clean.csv")
-
-# ## verify that we have concordance between the host phylogeny and the host data in the GMPD
-# unique(gsub(" ","_",data$HostCorrectedName))%in%mam_tree$tip.label %>% all
-# mam_tree$tip.label%in%unique(gsub(" ","_",data$HostCorrectedName)) %>% all
-# 
-# ## verify that we have concordance between the parasite phylogeny and the parasite data in the GMPD
-# unique(gsub(" ","_",data$ParasiteCorrectedName))%in%para_tree$tip.label %>% all
-# para_tree$tip.label%in%unique(gsub(" ","_",data$ParasiteCorrectedName)) %>% all
 
 ## create a new data.frame with all possible host-parasite combinations
 expand.grid(Host.species=(data$HostCorrectedName %>% unique),
@@ -62,7 +57,52 @@ mutate(ndata,
        nhosts.sampled=left_join(ndata, data %>% count(HostCorrectedName),
                                 by=c("Host.species"="HostCorrectedName"))$n,
        nparas.sampled=left_join(ndata, data %>% count(ParasiteCorrectedName),
-                                by=c("Parasite.species"="ParasiteCorrectedName"))$n) -> ndata
+                                by=c("Parasite.species"="ParasiteCorrectedName"))$n) -> gmpd_ndata
+
+##################################
+##      Primate-only data       ##
+##################################
+pdata <- subset(data, HostOrder=="Primates")
+
+## prune the phylogenies to include only this data
+primate_tree <- keep.tip(gmpd_mam_tree, gsub(" ","_",unique(pdata$HostCorrectedName)))
+primate_para_tree <- keep.tip(gmpd_para_tree, gsub(" ","_",unique(pdata$ParasiteCorrectedName)))
+
+## create a new data.frame with all possible host-parasite combinations
+expand.grid(Host.species=(pdata$HostCorrectedName %>% unique),
+            Parasite.species=(pdata$ParasiteCorrectedName %>% unique)) -> primate_ndata
+mutate(primate_ndata, 
+       ncount=left_join(primate_ndata, pdata %>% count(HostCorrectedName,ParasiteCorrectedName),
+                        by=c("Host.species"="HostCorrectedName","Parasite.species"="ParasiteCorrectedName"))$n,
+       presence=ifelse(is.na(ncount),0,1),
+       nhosts.sampled=left_join(primate_ndata, pdata %>% count(HostCorrectedName),
+                                by=c("Host.species"="HostCorrectedName"))$n,
+       nparas.sampled=left_join(primate_ndata, pdata %>% count(ParasiteCorrectedName),
+                                by=c("Parasite.species"="ParasiteCorrectedName"))$n) -> primate_ndata
+primate_ndata$Host.species <- as.factor(as.character(primate_ndata$Host.species))
+primate_ndata$Parasite.species <- as.factor(as.character(primate_ndata$Parasite.species))
+
+##############################
+##      Nearctic data       ##
+##############################
+
+## Load the trees
+nearctic_mam_tree <- read.tree("nearctic_mammal_tree_clean.tre")
+nearctic_para_tree <- read.tree("nearctic_helminth_tree_clean.tre")
+## Load the data
+nearctic_data <- read.csv("nearctic_data_clean.csv")
+
+expand.grid(Host.species=(nearctic_data$Host %>% unique),
+            Parasite.species=(nearctic_data$Parasite %>% unique)) -> nearctic_ndata
+mutate(nearctic_ndata, 
+       ncount=left_join(nearctic_ndata, nearctic_data %>% count(Host,Parasite),
+                        by=c("Host.species"="Host","Parasite.species"="Parasite"))$n,
+       presence=ifelse(is.na(ncount),0,1),
+       nhosts.sampled=left_join(nearctic_ndata, nearctic_data %>% count(Host),
+                                by=c("Host.species"="Host"))$n,
+       nparas.sampled=left_join(nearctic_ndata, nearctic_data %>% count(Parasite),
+                                by=c("Parasite.species"="Parasite"))$n) -> nearctic_ndata
+
 
 ```
 
@@ -72,8 +112,7 @@ Perfect congruence would signal tight codiversification of specialist parasites 
 As such, the null hypothesis that the method is testing is that the evolution of hosts and parasites is independent.
 This method was one of the first developed that could account for the fact that many parasites can infect more than one host, and that hosts are often infected by many parasites.
 
-The method determines the evidence for coevolution via a permutation test.
-That is, it computes a statistic based on matrices describing (A) the presence/absence of each host-parasite association; (B) the parasite phylogenetic tree; (C) the host phylogenetic tree. 
+The computes a so-called "fourth corner" statistic (Legendre) based on the product of matrices describing (A) the presence/absence of each host-parasite association; (B) the parasite phylogenetic tree; and (C) the host phylogenetic tree. 
 To determine whether this statistic has a value that is different than what you would expect via chance, the presence/absence data is randomly permuted in three ways.
 Legendre et al. proposed a permutation such that each parasite infects the same number of hosts, but the identity of those hosts is randomly determined. 
 However, an alternative would be a permutation such that each host is infected by the same number of parasites, but the identify of those parasites is randomly determined.
@@ -86,69 +125,84 @@ The third permutation tests for coevolution, host and parasite evolutionary inte
 
 (Sidenote: Legendre et al. 2002 also provide a method for testing whether there are host-parasite associations that are particularly important to the overall coevolutionary pattern. I haven't used this method because I wasn't sure why I would, but it could be done pretty easily.)
 
-Based on the results of this analysis, we conclude that there is good evidence for coevolution, host and parasite evolutionary interactions, and for phylogenetic signal in parasite species richness and host range, as the observed value of the test statistic (which is meaningless in and of itself) is more extreme than the values observed for *any* of the bootstrap permutations, using any method of permutation.
+Based on the results of this analysis for the GMPD data, we conclude that there is good evidence for coevolution, host and parasite evolutionary interactions, and for phylogenetic signal in parasite species richness and host range, as the observed value of the test statistic (which is meaningless in and of itself) is more extreme than the values observed for *any* of the bootstrap permutations, using any method of permutation.
 
 ```{r}
 if(!file.exists("legendre_results.RDS")) {
-
-# matrices for host and parasite based on the branch lengths in the phylogenetic tree
-# (Note that differences in tree depth do not matter because of the use of corr=T)
-ht<-vcv(mam_tree, corr=T)
-pt<-vcv(para_tree, corr=T)
-
-# incidence data
-Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
-## change names to match the phylogeny
-rownames(Y) <- gsub(" ", "_", rownames(Y))
-colnames(Y) <- gsub(" ", "_", colnames(Y))
-
-## reorder A matrices so match row/columns of Y
-hi<-match(rownames(Y), rownames(ht))
-pi<-match(colnames(Y), rownames(pt))
-ht<-ht[hi,hi]
-pt<-pt[pi,pi]
-
-## get principal coordinates of the phylogenetic distance matrix (for the Legendre approach)
-htp<-pcoa(1-ht)$vectors
-ptp<-pcoa(1-pt)$vectors
-
-## D matrices (see Appendix) for Legendre and Ives methods
-lD<-t(htp)%*%Y%*%ptp
-
-## Legendre metric
-cl<-sum(diag(t(lD)%*%lD))
-
-## Bootstrap result storage
-boot.1 <- 1:1000
-boot.2 <- 1:1000
-boot.3 <- 1:1000
-
-##################
-## Permutations ##
-##################
-## Compute the Legendre metric for randomly permuted 
-## incidence data. 
-for(j in 1:1000){
-  print(j)
-  
-  Y2<-apply(Y, 2, sample)                     # Legendre permtations
-  lD<-t(htp)%*%Y2%*%ptp                       # Legendre D matrix
-  boot.1[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
-
-  Y2 <- apply(Y, 1, sample)
-  lD<-t(ptp)%*%Y2%*%htp                       # Legendre D matrix
-  boot.2[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
-  
-  Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
-  lD<-t(htp)%*%Y2%*%ptp
-  boot.3[j]<-sum(diag(t(lD)%*%lD)) 
-}
-
-legendre_results <- c(cl, sum(cl < boot.1)/1000, sum(cl < boot.2)/1000, sum(cl < boot.3)/1000)
-names(legendre_results) <- c("metric", "L1-pval", "L2-pval", "H-pval")
-saveRDS(legendre_results, file="legendre_results.RDS")} else{
-  legendre_results <- readRDS("legendre_results.RDS")
-  legendre_results
+  legendre_results <- array(NA, dim=c(3,5))
+  colnames(legendre_results) <- c("dataset","value", "L1-pval", "L2-pval", "H-pval")
+  for (mod in 1:3) {
+    if (mod==1) {
+      dataset <- "GMPD"
+      mam_tree <- gmpd_mam_tree
+      para_tree <- gmpd_para_tree
+      ndata <- gmpd_ndata
+    } else if (mod==2) {
+      dataset <- "Primates"
+      mam_tree <- primate_tree
+      para_tree <- primate_para_tree
+      ndata <- primate_ndata
+    } else {
+      dataset <- "Nearctic"
+      mam_tree <- nearctic_mam_tree
+      para_tree <- nearctic_para_tree
+      ndata <- nearctic_ndata
+    }    
+    # matrices for host and parasite based on the branch lengths in the phylogenetic tree
+    # (Note that differences in tree depth do not matter because of the use of corr=T)
+    ht<-vcv(mam_tree, corr=T)
+    pt<-vcv(para_tree, corr=T)
+    
+    # incidence data
+    Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
+    ## change names to match the phylogeny
+    rownames(Y) <- gsub(" ", "_", rownames(Y))
+    colnames(Y) <- gsub(" ", "_", colnames(Y))
+    
+    ## reorder A matrices so match row/columns of Y
+    hi<-match(rownames(Y), rownames(ht))
+    pi<-match(colnames(Y), rownames(pt))
+    ht<-ht[hi,hi]
+    pt<-pt[pi,pi]
+    
+    ## get principal coordinates of the phylogenetic distance matrix (for the Legendre approach)
+    htp<-pcoa(1-ht)$vectors
+    ptp<-pcoa(1-pt)$vectors
+    
+    ## D matrices (see Appendix) for Legendre and Ives methods
+    lD<-t(htp)%*%Y%*%ptp
+    
+    ## Legendre metric
+    cl<-sum(diag(t(lD)%*%lD))
+    
+    ## Bootstrap result storage
+    boot.1 <- 1:1000
+    boot.2 <- 1:1000
+    boot.3 <- 1:1000
+    
+    ##################
+    ## Permutations ##
+    ##################
+    ## Compute the Legendre metric for randomly permuted 
+    ## incidence data. 
+    for(j in 1:1000){
+      print(j)
+      
+      Y2<-apply(Y, 2, sample)                     # Legendre permtations
+      lD<-t(htp)%*%Y2%*%ptp                       # Legendre D matrix
+      boot.1[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
+      
+      Y2 <- apply(Y, 1, sample)
+      lD<-t(ptp)%*%Y2%*%htp                       # Legendre D matrix
+      boot.2[j]<-sum(diag(t(lD)%*%lD))              # Legendre metric (ParafitGlobal)
+      
+      Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
+      lD<-t(htp)%*%Y2%*%ptp
+      boot.3[j]<-sum(diag(t(lD)%*%lD)) 
+    }
+    legendre_results[mod,] <- c(dataset, cl, sum(cl < boot.1)/1000, sum(cl < boot.2)/1000, sum(cl < boot.3)/1000)
+  }
+  saveRDS(legendre_results, file="legendre_results.RDS")
 }
 
 
@@ -157,7 +211,6 @@ saveRDS(legendre_results, file="legendre_results.RDS")} else{
 
 The second method is that of Ives and Godfray (2006), which provides an alternative, but related, way of testing for phylogenetic signal in the pattern of host-parasite association.
 <!-- That is, we can both test for phylogenetic signal in the pattern of host-parasite associations, and determine whether this signal is acting primarily through the host phylogeny, the parasite phylogeny, or both phylogenies together. -->
-As with the Legendre et al. method, Ives and Godfray combine the information contained within the host-parasite association data and the host and parasite phylogenies to estimate so-called "fourth corner" statistics that describe the phylogenetic signal in the pattern of host-parasite associations.
 However, the method differs from that of Legendre et al. in that it essentially transforms the branch lengths of the host and parasite phylogenies to maximize the fit of the evolutionary model to the observed host-parasite association data, whereas the branch lengths remain fixed by the Legendre et al. method.
 In other words, during the fitting process, the covariance between any two tips n either tree (which is proportional to the branch lengths separating them) is adjusted to maximize the fit of the evolutionary model. 
 More exactly, the covariance between any two tips is specified by an Ornstein-Uhlenbeck process with a parameter $d$ that determines the strength of the phylogenetic signal, essentially transforming the branch lengths (Blomberg et al. 2003).
@@ -165,6 +218,8 @@ The Ornstein-Uhlenbeck model is often described as a model for stabilizing selec
 If $d=0$, there is no phylogenetic correlation (a star phylogeny), whereas $d=1$ implies no selection (Brownian motion), and a value of $0 < d< 1$ implies some amount of stabilizing selection.
 The method assumes that there is some value, $d_h$ that best describes the covariance between host species, and a separate parameter, $d_p$, that describes the covariance between parasite species; specifically, the method estimates the values of $d_h$ and $d_p$ that minimize the mean square error between the model-predicted host-parasite associations and the observed host-parasite associations.
 Comparing the values of $d_h$ and $d_p$ give a sense of how much phylogenetic signal is due to the host versus the parasite.
+
+
 
 Unfortunately, the method in full generality is not applicable to phylogenies this large, because the method generates matrices that are so large that they consume all available computer memory.
 Instead, we use a simplified version of the method investigated in Hadfield et al. (2014).
@@ -184,6 +239,52 @@ However, the p-value for the perturbation that randomly reassigns all host-paras
 [Sidebar: it might be worth applying the full Ives and Godfray analysis on a subset of the data. For example, we could do the analysis on the big dataset to determine whether there is any signal globally, and then look at only a subset of the data (e.g., just the data from Primates) to determine the relatively influence of host versus parasite evolution. This would have a nice connection to the question of zoonotic risk, as it would let us determine whether humans are most at risk from parasites that are phylogenetically close to ours, or from the parasites that infect our close relatives. ]
 
 ```{r}
+## Compute the full model of Ives & Godfray for the Nearctic and Primate datasets
+ht<-vcv(nearctic_mam_tree, corr=T)
+pt<-vcv(nearctic_para_tree, corr=T)
+Y<-table(nearctic_ndata$Host.species, nearctic_ndata$Parasite.species, nearctic_ndata$presence)[,,2]>0
+## change names to match the phylogeny
+rownames(Y) <- gsub(" ", "_", rownames(Y))
+colnames(Y) <- gsub(" ", "_", colnames(Y))
+
+## reorder A matrices so match row/columns of Y
+hi<-match(rownames(Y), rownames(ht))
+pi<-match(colnames(Y), rownames(pt))
+ht<-ht[hi,hi]
+pt<-pt[pi,pi]
+
+source("pblm.R") ## modified version of the code in the package 'picante'
+o <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=TRUE, maxit=1000, nreps=20)
+saveRDS(o, file="IvesGodfray_full_nearctic.RDS")
+
+## Compute the full model of Ives & Godfray for the Nearctic and Primate datasets
+ht<-vcv(primate_tree, corr=T)
+pt<-vcv(primate_para_tree, corr=T)
+Y<-table(primate_ndata$Host.species, primate_ndata$Parasite.species, primate_ndata$presence)[,,2]>0
+## change names to match the phylogeny
+rownames(Y) <- gsub(" ", "_", rownames(Y))
+colnames(Y) <- gsub(" ", "_", colnames(Y))
+
+## reorder A matrices so match row/columns of Y
+hi<-match(rownames(Y), rownames(ht))
+pi<-match(colnames(Y), rownames(pt))
+ht<-ht[hi,hi]
+pt<-pt[pi,pi]
+
+source("pblm.R") ## modified version of the code in the package 'picante'
+tin <- Sys.time()
+o <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="chol2inv")
+tout <- Sys.time()
+
+o2 <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="qr.solve")
+
+tin2 <- Sys.time()
+o3 <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="solve")
+tout2 <- Sys.time()
+
+saveRDS(o, file="IvesGodfray_full_primate.RDS")
+
+
 if(!file.exists("IvesGodfray_results.RDS")) {
 # matrices for host and parasite based on the branch lengths in the phylogenetic tree
 # (Note that differences in tree depth do not matter because of the use of corr=T)
