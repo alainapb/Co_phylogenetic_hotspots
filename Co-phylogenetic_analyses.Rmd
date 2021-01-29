@@ -28,8 +28,6 @@ library(gdata)
 library(igraph)
 library(phytools)
 library(tidyverse)
-library(picante)
-#library(brms)
 
 ###############################
 ##      Load the trees       ##
@@ -271,19 +269,77 @@ pi<-match(colnames(Y), rownames(pt))
 ht<-ht[hi,hi]
 pt<-pt[pi,pi]
 
-source("pblm.R") ## modified version of the code in the package 'picante'
 tin <- Sys.time()
-o <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="chol2inv")
+o <- pblm(assocs=Y, tree1=ht, tree2=pt, maxit=1000, method="chol2inv")
 tout <- Sys.time()
-
-o2 <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="qr.solve")
-
-tin2 <- Sys.time()
-o3 <- pblm(assocs=Y, tree1=ht, tree2=pt, bootstrap=FALSE, maxit=1000, method="solve")
-tout2 <- Sys.time()
 
 saveRDS(o, file="IvesGodfray_full_primate.RDS")
 
+## Generate new datasets using the best-fitting model to derive bootstrap CIs for the d1, d2 parameters
+d1 <- o$signal.strength[1,2]
+d2 <- o$signal.strength[2,2]
+A<-as.matrix(as.vector(as.matrix(Y)))
+nassocs<-length(A)
+nspp1<-dim(Y)[1]
+nspp2<-dim(Y)[2]
+U<-rep(1,length(A))
+
+initV1<-as.matrix(ht)
+initV2<-as.matrix(pt)
+
+# tau = tau_i + tau_j where tau_i equals the node to tip distance
+tau1<-matrix(diag(initV1),nspp1,nspp1) + matrix(diag(initV1),nspp1,nspp1)-2*initV1
+tau2<-matrix(diag(initV2),nspp2,nspp2) + matrix(diag(initV2),nspp2,nspp2)-2*initV2
+
+V1<-(d1^tau1)*(1-d1^(2*initV1))/(1-d1^2)
+V2<-(d2^tau2)*(1-d2^(2*initV2))/(1-d2^2)
+V1<-V1/det(V1)^(1/nspp1)   # model of coevolution
+V2<-V2/det(V2)^(1/nspp2)
+V<-kronecker(V2,V1)  
+invV<-chol2inv(chol(V))
+
+aFull<-solve((t(U)%*%invV%*%U),((t(U)%*%invV%*%A)))   #NOTE: Ives in his Matlab code uses a Left matrix division symbol (\)
+  
+Vtrue<-V
+Atrue<-A
+atrue<-aFull
+dtrue<-c(d1,d2)
+ehold<-eigen(Vtrue,symmetric=TRUE)
+L<-ehold$vectors[,nassocs:1]    #A or L
+G<-sort(ehold$values)      #D
+iG<-diag(G^-.5)    #iD
+  
+# Construct Y = TT*A so that 
+# E{(Y-b)*(Y-b)'} = E{(TT*A-b)*(TT*A-b)'}
+#				  = T*V*T'
+#				  = I
+TT<-iG%*%t(L)
+Y<-TT%*%Atrue
+Z<-TT%*%U
+  
+res<-(Y-Z%*%atrue)	# residuals in orthogonalized space
+invT <- qr.solve(TT)
+
+set.seed(1243897)
+Aboot <- vector(mode='list', length=100)
+for (i in 1:length(Aboot)) {
+  randindex<-sample(1:nassocs,replace=TRUE)	# vector of random indices
+  #randindex=1:nassocs					# retain order
+  YY<-Z%*%atrue+res[randindex]	# create new values of Y with random residuals
+  Aboot[[i]]<-invT%*%YY	# back-transformed data
+}
+
+source("pblm_bootstrap.R")
+
+mclapply(Aboot, 
+         function(A) pblm_boot(Aboot[[1]], ht, pt, d1, d2),
+         mc.cores=4) -> ob
+
+
+tin <- Sys.time()
+ob <- pblm_boot(Aboot[[1]], ht, pt, d1, d2) 
+tout <- Sys.time()
+  
 
 if(!file.exists("IvesGodfray_results.RDS")) {
 # matrices for host and parasite based on the branch lengths in the phylogenetic tree
