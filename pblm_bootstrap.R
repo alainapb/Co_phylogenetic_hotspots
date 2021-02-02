@@ -2,25 +2,22 @@ pblm_boot<-function(A,tree1,tree2,d1,d2, maxit=10000){
   
   #numbers of species and interactions
   nassocs<-length(A)
-  nspp1<-dim(V1)[1]
-  nspp2<-dim(V2)[2]
+  nspp1<-dim(tree1)[1]
+  nspp2<-dim(tree2)[1]
   
   U<-rep(1,length(A))
    
   #tree1 is the phylogeny for the rows
   #tree2 is the phylogeny for the columns
-  V1 <- as.matrix(tree1)
-  V2 <- as.matrix(tree2)
+  initV1 <- as.matrix(tree1)
+  initV2 <- as.matrix(tree2)
   
-  V<-kronecker(V2,V1) 
-  invV <- chol2inv(chol(V))
- 
   ###################
   # Full EGLS estimates of phylogenetic signal
   ##################
   # tau = tau_i + tau_j where tau_i equals the node to tip distance
-  tau1<-matrix(diag(V1),nspp1,nspp1) + matrix(diag(V1),nspp1,nspp1)-2*V1
-  tau2<-matrix(diag(V2),nspp2,nspp2) + matrix(diag(V2),nspp2,nspp2)-2*V2
+  tau1<-matrix(diag(initV1),nspp1,nspp1) + matrix(diag(initV1),nspp1,nspp1)-2*initV1
+  tau2<-matrix(diag(initV2),nspp2,nspp2) + matrix(diag(initV2),nspp2,nspp2)-2*initV2
   
   # The workhorse function to estimate ds
   pegls<-function(parameters)
@@ -33,8 +30,7 @@ pblm_boot<-function(A,tree1,tree2,d1,d2, maxit=10000){
     
     V1<-V1/det(V1)^(1/nspp1)   # model of coevolution
     V2<-V2/det(V2)^(1/nspp2)
-    V<-kronecker(V2,V1)  
-    invV<- chol2inv(chol(V))
+    invV<- kronecker(chol2inv(chol(V2)),chol2inv(chol(V1)))
     a<-solve((t(U)%*%invV%*%U),((t(U)%*%invV%*%A)))   #NOTE: Ives in his Matlab code uses a Left matrix division symbol (\)
     E<-(A-U%*%a)
     #MSE
