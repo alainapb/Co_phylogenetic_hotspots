@@ -1,18 +1,33 @@
 ---
 title: "Co-phylogenetic analyses"
 output:
-  html_document: default
   pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
                       dev=c('png','tiff'),
                       fig.path='figures/')
+library(MCMCglmm, quietly = TRUE, warn.conflicts=FALSE)
+library(gdata, quietly = TRUE, warn.conflicts=FALSE)
+library(igraph, quietly = TRUE, warn.conflicts=FALSE)
+library(phytools, quietly = TRUE, warn.conflicts=FALSE)
+library(tidyverse, quietly = TRUE, warn.conflicts=FALSE)
+library(parallel, quietly = TRUE, warn.conflicts=FALSE)
 
 ```
 
-##### A possible pitch for the paper
+### Background
+
+Zoonoses, pathogens transmitted between humans and animal taxa, are a rising threat to public health and wildlife conservation. With the increase in emergence of zoonotic infectious diseases, research to predict and survey potentially zoonotic host-pathogen interactions is critical (Cleavland et al. 2001; Taylor et al. 2001; Han et al. 2016; Olival et al. 2017). Recent work indicates that hosts infected by phylogenetically diverse pathogens are at a higher risk for disease spillover (Olival et al. 2017). Additionally, host shifts are more likely to occur between closely related hosts (Davies & Pederson 2008; Ramsden et al. 2009; Cooper et al. 2012; Huang et al. 2013; Longdon et al. 2014), suggesting that close relatives of humans infected by phylogenetically diverse pathogens are most likely to cause a spillover event. Understanding which ecological and evolutionary components of host-pathogen interactions lead to spillover events remains challenging but necessary to more accurately surrey potential emerging infectious diseases.
+
+The ecological and evolutionary components of host-pathogen interactions can be explained by four hypotheses. The first is that host-pathogen associations could be random with respect to both the host and pathogen phylogenies, in which host-pathogen interactions are likely driven by abiotic or biotic factors rather than evolution. For instance, associations between nematodes and their stick insect hosts are likely determined by geographic separation (Larose & Schwander 2016). In contrast with the first hypothesis, the second suggests that host-pathogen associations are driven by codivergence, where closely related hosts are infected by closely related pathogens. This pattern has been observed in pocket gophers with chewing lice (Demastes et al. 2012; CITE). The last hypotheses assume that the pattern of host-pathogen association is largely driven by either host or pathogen evolution. For instance, if the pattern was driven by host evolution, closely related hosts would be infected by similar pathogens, regardless of the relatedness of the pathogens (shown in McCoy et al. 2001; Streicker et al. 2010). Similarly, if the pattern was driven by pathogen evolution, closely related pathogens would infect similar hosts, regardless of the relatedness of those hosts (indicated in ...).
+
+Determining which of these hypotheses provides the best fit with data can be used to identify potential zoonotic threats. For example, if neither host or pathogen evolution shapes host-pathogen interactions, then determining the ecological factors, abiotic and biotic, that shape these interactions is the first step in identifying potential sources of emerging infectious diseases (host geographic range or parasite life history… CITES). In contrast, if host-pathogen associations are driven by codivergence, then the pathogens most likely to spill into humans will be pathogens that both infect close relatives, i.e. the great apes, and are closely related to pathogens already infecting humans. If host evolution alone plays the dominant role, then surveillance should shift attention to the pathogens of humans’ close relatives, regardless of whether they are similar to pathogens that already infect humans. Surveying primates for potentially emerging pathogens is a relatively straightforward task and is one that researchers are already pursuing (see… CITES… Nunn or Goldberg?). On the other hand, if parasite evolution alone plays the dominant role, surveying potential zoonoses is more difficult because it would require identifying the close relatives of the pathogens that already infect humans and surveying their current hosts.
+
+We use host-pathogen databases containing associations between helminth taxa and free-range mammals (GMPD, Stephens et al. 2017; Nearctic dataset, Botero-Cañola 2020) in combination with reconstructed host and pathogen molecular phylogenies (Faurby et al. 2018; Pfenning-Butterworth et al. ???) to assess which hypothesis, stated above, best fit helminth-mammal associations. We conducted co-phylogenetic analyses using multiple methods (CITATIONS). Briefly, we first used ParaFit to evaluate the evidence for codivergence in the data (Legendre et al. 2012). Then, we tested for phylogenetic signal in the pattern of helminth-mammal associations following Ives and Godfray (2006). Next, we …. (Hommla et al. 2009). Lastly, we estimated the modularity of helminth-mammal associations following Krasnov et al. (2012).
+
 Given an observed pattern of host-parasite associations and phylogenies for the host and parasite species, we can test four possible explanations for the observed pattern. The pattern could be random with respect to both phylogenies, which might suggest that host-parasite interactions are driven more by biotic or abiotic factors than by evolution. At the opposite end of the spectrum, it could be that the pattern is driven by coevolution between the hosts and parasites, so that closely related hosts tend to be infected by closely related parasites. (Discussion material: the TREE paper we read from Soren Nylin recently that was arguing against cospeciation being an important force). There are also two intermediate perspectives. It is possible that the pattern is largely driven by host or parasite evolution. In the former case, closely related hosts are infected by similar parasites, irrespective of the relatedness of those parasites. In the latter case, closely related parasites infect similar hosts, irrespective of the relatedness of those hosts. Determining which of these explanations provides the best fit with data can help us to identify zoonotic disease threats. For example, if host-parasite associations are driven by coevolution, then the most likely parasites to spill into humans will be those that both infect our close relatives and are closely related to parasites already known to infect us. However, if host evolution plays the dominant role, then we need to focus our attention on all of the parasites of our close relatives, regardless of whether they are similar to parasites that already infect us. This may be a relatively straightforward task. On the other hand, if parasite evolution plays the dominant role, the task is more difficult because it would require us to identify the close relatives of our parasites, whatever may be their current hosts.
 
 ### Methods
@@ -22,13 +37,7 @@ To determine whether there are any general patterns in the effect of host and pa
 Additionally, we analyze these patterns using only the data on Primate-parasite associations in the GMPD.
 With these data, we can carry out several different co-phylogenetic analyses using different methods that have been proposed in the literature.
 
-```{r}
-library(MCMCglmm)
-library(gdata)
-library(igraph)
-library(phytools)
-library(tidyverse)
-library(parallel)
+```{r, echo=FALSE}
 
 ###############################
 ##      Load the trees       ##
@@ -124,7 +133,7 @@ The third permutation tests for coevolution, host and parasite evolutionary inte
 
 (Sidenote: Legendre et al. 2002 also provide a method for testing whether there are host-parasite associations that are particularly important to the overall coevolutionary pattern. I haven't used this method because I wasn't sure why I would, but it could be done pretty easily.)
 
-```{r}
+```{r, echo=FALSE}
 if(!file.exists("legendre_results.RDS")) {
   legendre_results <- array(NA, dim=c(3,5))
   colnames(legendre_results) <- c("dataset","value", "L1-pval", "L2-pval", "H-pval")
@@ -206,28 +215,104 @@ if(!file.exists("legendre_results.RDS")) {
 ```
 
 
-The second method is that of Ives and Godfray (2006), which provides an alternative, but related, way of testing for phylogenetic signal in the pattern of host-parasite association.
-<!-- That is, we can both test for phylogenetic signal in the pattern of host-parasite associations, and determine whether this signal is acting primarily through the host phylogeny, the parasite phylogeny, or both phylogenies together. -->
-However, the method differs from that of Legendre et al. in that it essentially transforms the branch lengths of the host and parasite phylogenies to maximize the fit of the evolutionary model to the observed host-parasite association data, whereas the branch lengths remain fixed by the Legendre et al. method.
-In other words, during the fitting process, the covariance between any two tips n either tree (which is proportional to the branch lengths separating them) is adjusted to maximize the fit of the evolutionary model. 
-More exactly, the covariance between any two tips is specified by an Ornstein-Uhlenbeck process with a parameter $d$ that determines the strength of the phylogenetic signal, essentially transforming the branch lengths (Blomberg et al. 2003).
+The second method is that of Hommola et al. (2009), which tests for a correlation between shared branch lengths.
+More specifically, the method looks at pairs of host-parasite associations and calculates the phylogenetic distance between the hosts in the pair and between the parasites in the pair: the host distance will be zero for pairs representing two parasites infecting the same host; similarly, the parasite distance will be zero for pairs representing a parasite infecting two hosts.
+After computing these branch lengths for all pairs, the method then estimates the correlation between the host distances and the parasite distances over all host-parasite association pairs.
+A high correlation means that, when two hosts are far apart on the tree, the parasites that infect them also tend to be far apart; similarly, when hosts are closely related, their parasites tend to be closely related as well.
+A low correlation would mean that there is no relationship between the distance between hosts and between parasites.
+We compute this correlation in our three datasets, and then compare the observed correlation against randomly permuted data, using the same set of permutations described above.
+Like the method of Legendre et al., this test can provide evidence for phylogenies affecting host-parasite associations. 
+
+
+```{r, echo=FALSE}
+if(!file.exists("Hommola_results.RDS")) {
+  ## make sure you have a compiled Hommola.so available in this directory before running hommola()
+  source("Hommola.R")
+  hommola_results <- array(NA, dim=c(3,5))
+  colnames(hommola_results) <- c("dataset","value", "L1-pval", "L2-pval", "H-pval")
+  for (mod in 1:3) {
+    if (mod==1) {
+      dataset <- "GMPD"
+      mam_tree <- gmpd_mam_tree
+      para_tree <- gmpd_para_tree
+      ndata <- gmpd_ndata
+    } else if (mod==2) {
+      dataset <- "Primates"
+      mam_tree <- primate_tree
+      para_tree <- primate_para_tree
+      ndata <- primate_ndata
+    } else {
+      dataset <- "Nearctic"
+      mam_tree <- nearctic_mam_tree
+      para_tree <- nearctic_para_tree
+      ndata <- nearctic_ndata
+    }    
+    
+    # matrices for host and parasite based on the branch lengths in the phylogenetic tree
+    # (Note that differences in tree depth do not matter because of the use of corr=T)
+    ht<-vcv(mam_tree, corr=T)
+    pt<-vcv(para_tree, corr=T)
+    
+    # incidence data
+    Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
+    ## change names to match the phylogeny
+    rownames(Y) <- gsub(" ", "_", rownames(Y))
+    colnames(Y) <- gsub(" ", "_", colnames(Y))
+    
+    ## Metrics of Legendre, Ives & Godfray, and Hommola (see Appendix of Hadfield et al. 2014)
+    ch<-hommola(Y, ht,pt)
+    
+    boot.1 <-1:1000
+    boot.2 <-1:1000
+    boot.3 <-1:1000
+    
+    ##################
+    ## Permutations ##
+    ##################
+    for(j in 1:1000){
+      
+      Y2<-apply(Y, 2, sample)                     # Legendre permtations
+      boot.1[j]<-hommola(Y2, ht,pt)                 # Hommola metric
+      
+      Y2<-apply(Y, 1, sample)
+      boot.2[j]<-hommola(Y2, pt, ht) 
+      
+      Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
+      boot.3[j]<-hommola(Y2, ht,pt)    
+    }
+    hommola_results[mod,] <- c(dataset, ch, sum(ch < boot.1)/1000, sum(ch < boot.2)/1000, sum(ch < boot.3)/1000)
+  }
+  saveRDS(hommola_results, file="Hommola_results.RDS")
+}
+
+```
+
+The third and fourth methods, in contrast to the first two, provide additional information that can help us to determine whether the pattern of host-parasite association is more strongly structured by host evolutionary history, parasite evolutionary history, or coevolution. 
+The third method is that of Ives and Godfray (2006); it essentially transforms the branch lengths of the host and parasite phylogenies to maximize the fit of the evolutionary model to the observed host-parasite association data.
+This is in contrast to the related method of Legendre et al., which holds the branch lengths constant.
+Statistically speaking, the Legendre et al. method assumes that the covariance between species is determined by the branch lengths under a Brownian motion evolutionary process. 
+In contrast, the Ives and Godfray method adjusts the covariance between any two tips in either tree to maximize the fit of the evolutionary model. 
+This covariance is specified by an Ornstein-Uhlenbeck process with a parameter $d$ that determines the strength of the phylogenetic signal; this essentially transforming the branch lengths (Blomberg et al. 2003).
 The Ornstein-Uhlenbeck model is often described as a model for stabilizing selection: a deterministic tendency towards an "optimal" value for a trait evolving along a phylogeny (Hansen 1997).
-If $d=0$, there is no phylogenetic correlation (a star phylogeny), whereas $d=1$ implies no selection (Brownian motion), and a value of $0 < d< 1$ implies some amount of stabilizing selection.
-The method assumes that there is some value, $d_h$ that best describes the covariance between host species, and a separate parameter, $d_p$, that describes the covariance between parasite species; specifically, the method estimates the values of $d_h$ and $d_p$ that minimize the mean square error between the model-predicted host-parasite associations and the observed host-parasite associations.
+If $d=0$, there is no phylogenetic covariance between tips, which can be descrbied as a star phylogeny, whereas $d=1$ implies no selection and a covariance that is described by Brownian motion.
+A value of $0 < d< 1$ implies some amount of stabilizing selection, and $d > 1$ suggests disruptive selection.
+Since there are two phylogenies, the method assumes that there is some value, $d_h$ that best describes the covariance between host species, and a separate parameter, $d_p$, that describes the covariance between parasite species.
+The method estimates the values of $d_h$ and $d_p$ that minimize the mean square error between the model-predicted host-parasite associations and the observed host-parasite associations.
 Comparing the values of $d_h$ and $d_p$ give a sense of how much phylogenetic signal is due to the host versus the parasite.
 
-We use the method in full for the Nearctic and Primate datasets, first fitting simplified versions of the model that eitehr fix $d_h=d_p=0$ (star phylogeny) or $d_h=d_p=1$ (Brownian motion), then fitting the full model that allows $d_h$ and $d_p$ to be fit.
-Unfortunately, the GMPD dataset is too large: the code provided in Ives and Godfray (2007) and in the R package picante (ref) that implements the method requires generating matrices that are so large that they consume all available computer memory.
+We use the method in full for the Nearctic and Primate datasets, first fitting simplified versions of the model that either fix $d_h=d_p=0$ (star phylogeny) or $d_h=d_p=1$ (Brownian motion), then fitting the full model that fits $d_h$ and $d_p$ to the data.
+Unfortunately, the GMPD dataset is too large for the full method to work: both the code provided in the supplementary material of Ives and Godfray (2006) and in the R package picante (ref) that implements the method generate matrices that are so large that they consume all available computer memory.
 
-However, we can use a simplified version of the method that fixes $d_h=d_p=1$ (Hadfield et al. 2014). 
-At these parameter values, the covariance between tips to be strictly proportional to branch lengths, effectively assuming that host-parasite associations evolve according to Brownian motion.
-Under this assumption, the mean square error can be used as a test statistic, and we then use the same set of permutations of the data described above to evaluate the evidence for phylogenetic signal in the pattern of host-parasite association.
-Hadfield et al. (2014) show that there is a close relationship between this test statistic and that of Legendre et al. (2002).
+However, Hadfield et al. (2014) provide code for computing a statistic that is proportional to mean square error under the assumption that $d_h=d_p=1$ (Brownian motion evolution); their code does not generate large matrices, and is thus possible to apply all three datasets. 
+This statistic is very similar to that of Legendre et al. (2002). 
+It is also possible to compute the mean square error under the assumption that $d_h=d_p=0$ (star phylogeny) for all three models.
+We therefore compute these statistics for all three datasets, and use the same set of permutations described above to evaluate whether these two statistics are different from a null distribution based on randomly permuted host-parasite assocations. 
+This provides an alternative metric to evaluate the evidence for phylogenetic signal in the pattern of host-parasite association.
 
 <!-- Note that this essentially assumes that only the *coevolutionary* interaction influences the pattern. -->
 <!-- In other words, it does not allow you to determine whether host or parasite evolution might be influencing the pattern, such as might be the case if closely related hosts are infected by similar parasites regardless of the parasite phylogeny, or if closely related parasites infect similar hosts regardless of the parasite phylogeny. -->
 
-```{r, echo=TRUE, eval=FALSE}
+```{r, echo=FALSE, eval=FALSE}
 ## Compute the full model of Ives & Godfray for the Nearctic and Primate datasets
 ht<-vcv(nearctic_mam_tree, corr=T)
 pt<-vcv(nearctic_para_tree, corr=T)
@@ -409,8 +494,8 @@ saveRDS(ob, file="IvesGodfray_full_primate_bootstraps.RDS")
 
 ## Use the simplified version of Hadfield et al. 2014
 if(!file.exists("IvesGodfray_simplified_results.RDS")) {
-  ives_results <- array(NA, dim=c(3,5))
-  colnames(ives_results) <- c("dataset","value", "L1-pval", "L2-pval", "H-pval")
+  ives_results <- array(NA, dim=c(6,6))
+  colnames(ives_results) <- c("dataset", "model", "value", "L1-pval", "L2-pval", "H-pval")
   for (mod in 1:3) {
     if (mod==1) {
       dataset <- "GMPD"
@@ -446,19 +531,32 @@ if(!file.exists("IvesGodfray_simplified_results.RDS")) {
     ht<-ht[hi,hi]
     pt<-pt[pi,pi]
     
-    ## get unnormalised eigenvectors of phylogenetic distance matrix (for the Ives and Godfray method)
+    ## get unnormalised eigenvectors of phylogenetic distance matrix 
     hte<-t(t(eigen(solve(ht))$vectors)*sqrt(eigen(solve(ht))$values))
     pte<-t(t(eigen(solve(pt))$vectors)*sqrt(eigen(solve(pt))$values))
     
     ## D matrix (see Appendix of Hadfield et al. 2014) for Ives & Godfray methods
     iD<-t(hte)%*%(Y-mean(Y))%*%pte
     
-    ## Metrics of Ives & Godfray (see Appendix of Hadfield et al. 2014)
-    ci<-sum(diag(t(iD)%*%iD))
+    ## MSEb metric of Ives & Godfray under Brownian motion (see Appendix of Hadfield et al. 2014)
+    MSEbrown <- sum(diag(t(iD)%*%iD))
+    ## ASIDE: Verify/test whether this is the same as the MSEb metric calculated using the code in picante
+    ## The following comes from the code in pblm.R
+    ## Note that it is not the same, but Hadfield et al. 2014 note that ci should actually only be *proportional* to MSEb, not necessarily identical to it.
+    # A<-as.matrix(as.vector(as.matrix(Y)))
+    # U<-rep(1,length(A))
+    # invV <- kronecker(chol2inv(chol(as.matrix(pt))),chol2inv(chol(as.matrix(ht))))
+    # abase<-solve((t(U)%*%invV%*%U),((t(U)%*%invV%*%A)))   
+    # MSEBase<-(t(A-U%*%abase)%*%invV%*%(A-U%*%abase))/(length(A)-1)  
+    ## MSEstar metric of Ives & Godfray under a star phylogeny (see code for pblm.R)
+    MSEstar<-cov(as.matrix(as.vector(Y-mean(Y)))) %>% as.numeric()
     
-    boot.1<-1:1000
-    boot.2<-1:1000
-    boot.3<-1:1000
+    brown.boot.1<-1:1000
+    brown.boot.2<-1:1000
+    brown.boot.3<-1:1000
+    star.boot.1<-1:1000
+    star.boot.2<-1:1000
+    star.boot.3<-1:1000
     
     ##################
     ## Permutations ##
@@ -467,36 +565,47 @@ if(!file.exists("IvesGodfray_simplified_results.RDS")) {
       print(j)
       Y2<-apply(Y, 2, sample)                     # Legendre permtations
       iD<-t(hte)%*%(Y2-mean(Y2))%*%pte            # Ives D matrix
-      boot.1[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
+      brown.boot.1[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
+      star.boot.1[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
       
       Y2<-apply(Y, 1, sample)                     # Legendre permtations
       iD<-t(pte)%*%(Y2-mean(Y2))%*%hte            # Ives D matrix
-      boot.2[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
+      brown.boot.2[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
+      star.boot.2[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
       
       Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
       iD<-t(hte)%*%(Y2-mean(Y2))%*%pte
-      boot.3[j]<-sum(diag(t(iD)%*%iD)) 
+      brown.boot.3[j]<-sum(diag(t(iD)%*%iD)) 
+      star.boot.3[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
+      
     }
-    ives_results[mod,] <- c(dataset, ci,sum(ci > boot.1)/1000, sum(ci > boot.2)/1000, sum(ci > boot.3)/1000)
+    ives_results[2*mod-1,] <- c(dataset, "brown", MSEbrown, sum(MSEbrown > brown.boot.1)/1000, sum(MSEbrown > brown.boot.2)/1000, sum(MSEbrown > brown.boot.3)/1000)
+    ives_results[2*mod,] <- c(dataset, "star", MSEstar, sum(MSEstar > star.boot.1)/1000, sum(MSEstar > star.boot.2)/1000, sum(MSEstar > star.boot.3)/1000)
+    
   }
   saveRDS(ives_results, file="IvesGodfray_simplified_results.RDS")
 }
 
 ```
 
-The third method is that of Hommola et al. (2009), which tests for a correlation between shared branch lengths.
-More specifically, the method looks at pairs of host-parasite associations and calculates the phylogenetic distance between the hosts in the pair and between the parasites in the pair: the host distance will be zero for pairs representing two parasites infecting the same host; similarly, the parasite distance will be zero for pairs representing a parasite infecting two hosts.
-After computing these branch lengths for all pairs, the method then estimates the correlation between the host distances and the parasite distances over all host-parasite association pairs.
-A high correlation means that, when two hosts are far apart on the tree, the parasites that infect them also tend to be far apart; similarly, when hosts are closely related, their parasites tend to be closely related as well.
-A low correlation would mean that there is no relationship between the distance between hosts and between parasites.
 
+The fourth method comes from Krasnov et al. (2012).
+It is essentially a two-part algorithm.
+First, it estimates the modularity of the network formed by host-parasite associations: in a host-parasite network with high modularity, one would find clusters of hosts and parasites that interact mainly with one another, and not with other clusters of hosts and parasites.
+Modules are computed using the cluster_walktrap function in the R package igraph (Pons and Latapy 2005).
+Second, it estimates whether there is strong phylogenetic signal between modularity and the host or parasite phylogeny: that is, it determines whether the hosts and parasites that belong to modules tend to be closely related.
+It does this by calculating the correlation between comembership in a module and phylogenetic distance, that is, it asks whether, across all hosts (and parasites), is the pairwise phylogenetic distance between hosts (or parasites) within a single module less than the pairwise phylogenetic distance between hosts in separate modules.
+If so, then there is evidence for phylogeny structuring host-parasite associations.
+Again, we use permutations of the host-parasite association data to determine whether the observed correlations between comembership and phylogenetic distance are different from what you would expect for randomly constructed host-parasite association networks.
 
-```{r}
-if(!file.exists("Hommola_results.RDS")) {
-  ## make sure you have a compiled Hommola.so available in this directory before running hommola()
-  source("Hommola.R")
-  hommola_results <- array(NA, dim=c(3,5))
-  colnames(hommola_results) <- c("dataset","value", "L1-pval", "L2-pval", "H-pval")
+```{r, echo=FALSE}
+###################################################
+## Run module on data (from Krasnov et al. 2012) ##
+###################################################
+
+if (!file.exists("Krasnov_results.RDS")) {
+  krasnov_results <- array(NA, dim=c(3,9))
+  colnames(krasnov_results) <- c("dataset", "host-corr", "L1-pval", "L2-pval", "H-pval", "parasite-corr", "L1-pval", "L2-pval", "H-pval")
   for (mod in 1:3) {
     if (mod==1) {
       dataset <- "GMPD"
@@ -515,8 +624,7 @@ if(!file.exists("Hommola_results.RDS")) {
       ndata <- nearctic_ndata
     }    
     
-    # matrices for host and parasite based on the branch lengths in the phylogenetic tree
-    # (Note that differences in tree depth do not matter because of the use of corr=T)
+    # A matrices for host and parasite
     ht<-vcv(mam_tree, corr=T)
     pt<-vcv(para_tree, corr=T)
     
@@ -526,41 +634,78 @@ if(!file.exists("Hommola_results.RDS")) {
     rownames(Y) <- gsub(" ", "_", rownames(Y))
     colnames(Y) <- gsub(" ", "_", colnames(Y))
     
-    ## Metrics of Legendre, Ives & Godfray, and Hommola (see Appendix of Hadfield et al. 2014)
-    ch<-hommola(Y, ht,pt)
+    hi<-match(rownames(Y), rownames(ht))
+    pi<-match(colnames(Y), rownames(pt))
     
-    boot.1 <-1:1000
-    boot.2 <-1:1000
-    boot.3 <-1:1000
+    # reorder A matrices so match row/columns of Y
+    ht<-ht[hi,hi]
+    pt<-pt[pi,pi]
     
-    ##################
-    ## Permutations ##
-    ##################
-    for(j in 1:1000){
+    # assign species to modules
+    G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
+    MU<-cluster_walktrap(G) ## identify clusters
+    MU<-membership(MU) ## determine which clusters each host and parasite belong to
+    
+    lth<-which(lower.tri(ht))
+    
+    # correlation between comembership and phylogenetic distance of hosts
+    chk<-cor(outer(MU[1:length(hi)], MU[1:length(hi)], "==")[lth], c(1-ht)[lth])
+    
+    ltp<-lower.tri(pt)
+    
+    cpk<-cor(outer(MU[length(hi)+1:length(pi)], MU[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
+    # correlation between comembership and phylogenetic distance of parasites
+    
+    ## Bootstrapping
+    # storing host & parasite membership/phylogenetic-distance correlations after the different permutations
+    spk.1<-1:1000
+    spk.2<-1:1000
+    spk.3<-1:1000
+    shk.1<-1:1000
+    shk.2<-1:1000
+    shk.3<-1:1000
+    
+    for(i in 1:1000){
+      print(i)
+      Y2<-apply(Y, 2, sample)                     # Legendre sampling
+      G2<-graph.incidence(Y2)
+      MU2<-walktrap.community(G2)
+      MU2<-membership(MU2)
+      shk.1[i]<-cor(outer(MU2[1:length(hi)], MU2[1:length(hi)], "==")[lth], c(1-ht)[lth])
+      spk.1[i]<-cor(outer(MU2[length(hi)+1:length(pi)], MU2[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
       
-      Y2<-apply(Y, 2, sample)                     # Legendre permtations
-      boot.1[j]<-hommola(Y2, ht,pt)                 # Hommola metric
+      Y2<-apply(Y, 1, sample)                     # Legendre sampling
+      G2<-graph.incidence(Y2)
+      MU2<-walktrap.community(G2)
+      MU2<-membership(MU2)
+      spk.2[i]<-cor(outer(MU2[1:length(pi)], MU2[1:length(pi)], "==")[ltp], c(1-pt)[ltp])
+      shk.2[i]<-cor(outer(MU2[length(pi)+1:length(hi)], MU2[length(pi)+1:length(hi)], "==")[lth], c(1-ht)[lth])
       
-      Y2<-apply(Y, 1, sample)
-      boot.2[j]<-hommola(Y2, pt, ht) 
       
       Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
-      boot.3[j]<-hommola(Y2, ht,pt)    
+      G2<-graph.incidence(Y2)
+      MU2<-walktrap.community(G2)
+      MU2<-membership(MU2)
+      shk.3[i]<-cor(outer(MU2[1:length(hi)], MU2[1:length(hi)], "==")[lth], c(1-ht)[lth])
+      spk.3[i]<-cor(outer(MU2[length(hi)+1:length(pi)], MU2[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
+      #print(i)
     }
-    hommola_results[mod,] <- c(dataset, ch, sum(ch < boot.1)/1000, sum(ch < boot.2)/1000, sum(ch < boot.3)/1000)
+    krasnov_results[mod,] <- c(dataset,
+                               chk, sum(chk>shk.1)/1000, sum(chk>shk.2)/1000, sum(chk>shk.3)/1000,
+                               cpk, sum(cpk>spk.1)/1000, sum(cpk>spk.2)/1000, sum(cpk>spk.3)/1000)
   }
-  saveRDS(hommola_results, file="Hommola_results.RDS")
+  saveRDS(krasnov_results, file="Krasnov_results.RDS")
 }
+
 
 ```
 
-The fourth method comes from Krasnov et al. (2012).
-It is essentially a two-part algorithm.
-First, it estimates the modularity of the network formed by host-parasite associations: in a host-parasite network with high modularity, one would find clusters of hosts and parasites that interact mainly with one another, and not with other clusters of hosts and parasites.
-Modules are computed using the cluster_walktrap function in the R package igraph (Pons and Latapy 2005).
-Second, it estimates whether there is strong phylogenetic signal between modularity and the host or parasite phylogeny: that is, it determines whether the hosts and parasites that belong to modules tend to be closely related.
-It does this by calculating the correlation between comembership in a module and phylogenetic distance, that is, it asks whether, across all hosts (and parasites), is the pairwise phylogenetic distance between hosts (or parasites) within a single module less than the pairwise phylogenetic distance between hosts in separate modules.
-If so, then there is evidence for phylogeny structuring host-parasite associations.
+
+Note for Jonathan: we also attempted to run the full method of Hadfield et al. (2014), which is an extension of the approach of Ives and Godfray that uses a Bayesian approach to estimate the contribution of many different terms to the covariance observed in the host-parasite association data. 
+In particular, Hadfield et al. estimate (1) whether the number of parasites infecting each host is explained by host phylogeny (the host evolutionary effect); (2) whether host range of each parasite is explained by parasite phylogeny (the parasite evolutionary effect); (3) whether related hosts are infected by similar parasites (the host evolutionary interaction effect); (4) whether related parasites infect similar hosts (the parasite evolutionary interaction); and (5) whether related parasites infect related hosts (the coevolutionary interaction).
+We were able to obtain preliminary results from a shorter run (100,000 iterations), but that had not yet converged. 
+Runs of the model take several weeks and during a longer run, my computer crashed (perhaps due to the run itself).
+It's unclear to us whether it makes sense to stub in these results now, with the goal of having a more complete run to analyze by the time of revisions, or whether to just leave them out entirely.
 
 ### Results
 
@@ -574,31 +719,70 @@ res <- readRDS("legendre_results.RDS")
 res
 ```
 
+##### Hommola method
+The results indicate that there is fairly low correlation between host and parasite shared branch lengths observed in the GMPD data ($r < 0.001$).
+Moreover, this correlation is fairly likely under random perturbations of the host-parasite association data, with bootstrap p-values ranging from 0.33 to 0.37.
+Similarly, there is essentially no correlation between shared branch lengths in the Nearctic dataset either.
+However, there is a significant positive correlation in the Primate dataset, suggesting that there is a detectable phylogenetic signal in the pattern of host-parasite associations among Primates and their parasites.
+
+```{r}
+res <- readRDS("hommola_results.RDS")
+res
+```
+
 ##### Ives & Godfray method
+
+For the Nearctic dataset, the best-fitting evolutionary model was a star phylogeny ($d_h=d_p=0$).
+This can be seen both in the mean square error estimates of the different models and from the estimates of $d_h$ and $d_p$ in the full method. 
+For the Primate dataset, however, the best-fitting evolutionary model was the full model that fit both $d_h$ and $d_p$.
+This is despite the fact that the values of $d_h$ and $d_p$ are both very small.
+However, the value of $d_h$ is significantly larger than that of $d_p$, suggesting a larger role for the host phylogeny in shaping host-parasite associations among Primates and their parasites.
 
 ```{r}
 ig_method_nearctic <- readRDS("IvesGodfray_full_nearctic.RDS")
-nearctic_boots <- readRDS("IvesGodfray_full_nearctic_bootstraps.RDS")
+## MSE estimates for each each model fitted to the Nearctic dataset
+ig_method_nearctic$MSE
 
-ig_method_nearctic
-ig_method_primate <- readRDS("IvesGodfray_full_primate_bootstraps.RDS")
-ig_method_primate
+ig_method_primate <- readRDS("IvesGodfray_full_primate.RDS")
+## MSE estimates for each each model fitted to the Priamte dataset
+ig_method_primate$MSE
 ```
 
-Again, we see strong evidence that the observed patterns of host-parasite association are non-random.
-In particular, the p-values of the test comparing against the first and second perturbation (where the number, but not identity, of hosts parasitized by each parasite is preserved and where the number, by not identity, of parasites infecting each host is preserved) are both very small.
-The smaller value of the p-value for the second perturbation could indicate that there is stronger evidence for phylogenetic signal in host range of parasites than in the parasite species richness of hosts.
-However, the p-value for the perturbation that randomly reassigns all host-parasite associations is much higher, tempering the conclusions drawn above.
+```{r}
+nearctic_boots <- readRDS("IvesGodfray_full_nearctic_bootstraps.RDS")
+primate_boots <- readRDS("IvesGodfray_full_primate_bootstraps.RDS")
 
-###### Hommola method
-The results indicate that there is fairly low correlation between host and parasite shared branch lengths observed in the GMPD data ($r = 0.07$).
-Moreover, this correlation is fairly likely under random perturbations of the host-parasite association data, with bootstrap p-values ranging from 0.33 to 0.38.
+signal_estimates <- array(NA, dim=c(2,3))
+colnames(signal_estimates) <- c("dataset", "d_h", "d_p")
+c("Nearctic", 
+  paste0(signif(ig_method_nearctic$signal.strength$estimate[1],3), " (", 
+         signif((lapply(nearctic_boots, function(b) b[[1]]) %>% unlist %>% sort)[3],3), ", ",
+         signif((lapply(nearctic_boots, function(b) b[[1]]) %>% unlist %>% sort)[97],3),")"),
+  paste0(signif(ig_method_nearctic$signal.strength$estimate[2],3), " (", 
+         signif((lapply(nearctic_boots, function(b) b[[2]]) %>% unlist %>% sort)[3],3), ", ",
+         signif((lapply(nearctic_boots, function(b) b[[2]]) %>% unlist %>% sort)[97],3),")")) -> signal_estimates[1,]
+c("Primates", 
+  paste0(signif(ig_method_primate$signal.strength$estimate[1],3), " (", 
+         signif((lapply(primate_boots, function(b) b[[1]]) %>% unlist %>% sort)[3],3), ", ",
+         signif((lapply(primate_boots, function(b) b[[1]]) %>% unlist %>% sort)[97],3),")"),
+  paste0(signif(ig_method_primate$signal.strength$estimate[2],3), " (", 
+         signif((lapply(primate_boots, function(b) b[[2]]) %>% unlist %>% sort)[3],3), ", ",
+         signif((lapply(primate_boots, function(b) b[[2]]) %>% unlist %>% sort)[97],3),")")) -> signal_estimates[2,]
+```
 
-###### Krasnov method
+Interestingly, if we look at the permutation test results, we see that the fit of *both* the star phylogeny and a Brownian motion model to the real data in all three datasets is significantly different from random. 
+This is difficult to interpret, as the star phylogeny and Brownian motion are often set in opposition to one another in phylogenetic comparative analysis: one suggests a complete lack of phylogenetic signal, whereas the other suggests a strong phylogenetic signal.
+Here, we interpret these results merely as indicating that there is significant structure in the pattern of host-parasite association that may reflect both strong independent adaptation (as suggested by the star phylogeny) and by some phylogenetic constraint.
 
-Application of this function to the GMPD data produced 38 distinct host-parasite clusters; the overall modularity score was 0.63.
-You can see the modules in the graph. 
-What is obvious is that there are several highly connected modules comprising dense networks of closely interacting hosts and parasites, surrounded by many small, often disconnected modules.
+```{r}
+res <- readRDS("IvesGodfray_simplified_results.RDS")
+res
+```
+
+##### Krasnov method
+
+For the GMPD dataset, we detected 38 distinct host-parasite clusters, with an the overall modularity score of 0.63 (Fig. \@ref(fig:gmpd-module-graph).
+There are several highly connected modules comprising dense networks of closely interacting hosts and parasites, surrounded by many small, often disconnected modules.
 There are five modules with 20 or more interacting hosts and parasites, the largest of which contains 154 hosts and parasites.
 This module contains 62% of the Carnivore hosts, as well as large fractions of parasites from many of the parasite classes (e.g., 62% of the Platyhelminthes and 59% of the Acanthocephala)).
 The second largest module (77 species) contains 65% of the Artiodactyla (even-toed ungulates) and their parasites.
@@ -606,27 +790,14 @@ The third largest module (46 species) contains 57% of the Primates and their par
 The fourth largest module (37 species) contains all of the Perissodactyla (odd-toed ungulates) and their parasites.
 In other words, the clustering appears to be highly structured by host phylogeny.
 
-```{r module-graph, fig.height=8, fig.width=8, fig.cap="Host-parasite interaction network within the GMPD data, broken into 38 distinct modules."}
-###################################################
-## Run module on data (from Krasnov et al. 2012) ##
-###################################################
+```{r gmpd-module-graph, echo=FALSE, fig.height=8, fig.width=8, fig.cap="Host-parasite interaction network within the GMPD data, broken into 38 distinct modules."}
 
-# A matrices for host and parasite
-ht<-vcv(mam_tree, corr=T)
-pt<-vcv(para_tree, corr=T)
-
+ndata <- gmpd_ndata
 # incidence data
 Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
 ## change names to match the phylogeny
 rownames(Y) <- gsub(" ", "_", rownames(Y))
 colnames(Y) <- gsub(" ", "_", colnames(Y))
-
-hi<-match(rownames(Y), rownames(ht))
-pi<-match(colnames(Y), rownames(pt))
-
-# reorder A matrices so match row/columns of Y
-ht<-ht[hi,hi]
-pt<-pt[pi,pi]
 
 # assign species to modules
 G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
@@ -634,11 +805,11 @@ MU<-cluster_walktrap(G) ## identify clusters
 
 plot(MU,G,vertex.label="",vertex.size=2)
 ```
-```{r}
-MU<-membership(MU) ## determine which clusters each host and parasite belong to
 
+```{r, echo=FALSE, eval=FALSE}
+MU <- membership(MU)
 ## sizes of each cluster
-sapply(1:38, function(c) sum(MU==c))
+sapply(1:max(MU), function(c) sum(MU==c))
 
 ## How many of the members of each mammal Order belong in each cluster?
 ## 65% of Artiodactyla were assigned to cluster 2   
@@ -659,76 +830,128 @@ sapply(levels(data$ParClass), function(class) sapply(1:38, function(c) sum((subs
 
 ```
 
-The correlation betwen comembership in a module and phylogenetic distance of hosts was -0.49 in the GMPD data; the correlation between comembership in a module and phylogenetic distance of parasites was 0.03.
-The significance of these correlations was again assessed using the three permutations.
-We find that the observed correlation is highly significant for hosts, confirming the results observed in the module graph above, but that the correlation is not significant for parasites.
+For the Nearctic dataset, we detected 17 distinct host-parasite clusters, with an the overall modularity score of 0.5 (Fig. \@ref(fig:nearctic-module-graph)).
+Similar to the GMPD dataset, there are several large modules in the Nearctic dataset, although the overall pattern reveals more connections between modules than was evident in the GMPD data.
+Some of these modules appear to be structured by parasite.
+For example, the largest network contains *all* of the Artiodactyla in the dataset.
+The next largest network contains 46% of the Carnivores in the dataset, although Carnviores are also common in the third-largest network (which also contains marsupials and rodents).
+The overall higher interconnectedness of the network, and lower modularity, appears to be driven by the inclusion of rodents in this dataset, as rodents appear in 12 of the 17 modules.
 
-```{r}
-if (!file.exists("Krasnov_results.RDS")) {
-lth<-which(lower.tri(ht))
+```{r nearctic-module-graph, echo=FALSE, fig.height=8, fig.width=8, fig.cap="Host-parasite interaction network within the Nearctic dataset, broken into 38 distinct modules."}
 
-# correlation between comembership and phylogenetic distance of hosts
-chk<-cor(outer(MU[1:length(hi)], MU[1:length(hi)], "==")[lth], c(1-ht)[lth])
+ndata <- nearctic_ndata
+# incidence data
+Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
+## change names to match the phylogeny
+rownames(Y) <- gsub(" ", "_", rownames(Y))
+colnames(Y) <- gsub(" ", "_", colnames(Y))
 
-ltp<-lower.tri(pt)
+# assign species to modules
+G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
+MU<-cluster_walktrap(G) ## identify clusters
 
-cpk<-cor(outer(MU[length(hi)+1:length(pi)], MU[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
-# correlation between comembership and phylogenetic distance of parasites
+plot(MU,G,vertex.label="",vertex.size=2)
+```
 
-## Bootstrapping
-# storing host & parasite membership/phylogenetic-distance correlations after the different permutations
-spk.1<-1:1000
-spk.2<-1:1000
-spk.3<-1:1000
-shk.1<-1:1000
-shk.2<-1:1000
-shk.3<-1:1000
+```{r, echo=FALSE, eval=FALSE}
+MU <- membership(MU)
+## sizes of each cluster
+sapply(1:max(MU), function(c) sum(MU==c))
 
-for(i in 1:1000){
-  Y2<-apply(Y, 2, sample)                     # Legendre sampling
-  G2<-graph.incidence(Y2)
-  MU2<-walktrap.community(G2)
-  MU2<-membership(MU2)
-  shk.1[i]<-cor(outer(MU2[1:length(hi)], MU2[1:length(hi)], "==")[lth], c(1-ht)[lth])
-  spk.1[i]<-cor(outer(MU2[length(hi)+1:length(pi)], MU2[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
+## sizes of each cluster
+sapply(1:max(MU), function(c) sum(MU==c))
 
-  Y2<-apply(Y, 1, sample)                     # Legendre sampling
-  G2<-graph.incidence(Y2)
-  MU2<-walktrap.community(G2)
-  MU2<-membership(MU2)
-  spk.2[i]<-cor(outer(MU2[1:length(pi)], MU2[1:length(pi)], "==")[ltp], c(1-pt)[ltp])
-  shk.2[i]<-cor(outer(MU2[length(pi)+1:length(hi)], MU2[length(pi)+1:length(hi)], "==")[lth], c(1-ht)[lth])
-  
-    
-  Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
-  G2<-graph.incidence(Y2)
-  MU2<-walktrap.community(G2)
-  MU2<-membership(MU2)
-  shk.3[i]<-cor(outer(MU2[1:length(hi)], MU2[1:length(hi)], "==")[lth], c(1-ht)[lth])
-  spk.3[i]<-cor(outer(MU2[length(hi)+1:length(pi)], MU2[length(hi)+1:length(pi)], "==")[ltp], c(1-pt)[ltp])
-  #print(i)
-}
-k.tests<-cbind(c(chk, cpk), 
-               c(sum(chk>shk.1)/1000, sum(cpk>spk.1)/1000), 
-               c(sum(chk>shk.2)/1000, sum(cpk>spk.2)/1000), 
-               c(sum(chk>shk.3)/1000, sum(cpk>spk.3)/1000))
-# store metrics, and the proportion of times the metrics under permutation were greater 
-rownames(k.tests)<-c("H", "P")
-colnames(k.tests)<-c("statistic", "L-pval", "L2-pval", "H-pval")
-Krasnov_results <- k.tests
-saveRDS(Krasnov_results, file="Krasnov_results.RDS")} else {
-  Krasnov_results <- readRDS("Krasnov_results.RDS")
-  Krasnov_results
-}
+## How many of the members of each mammal Order belong in each cluster?
+## 65% of Artiodactyla were assigned to cluster 2   
+## 62% of Carnivores were assigned to cluster 7   
+## ALL of the Perissodactyla were assigned to cluster 13
+## 57% of Primates were assigned to cluster 1
+data <- read.csv("nearctic_data_clean.csv")
+orders <- data.frame(Host=levels(data$Host),
+HostOrder=c("Artiodactyla","Artiodactyla","Artiodactyla","Eulipotyphla",
+  "Carnivora","Carnivora","Rodentia","Artiodactyla",
+  "Eulipotyphla","Eulipotyphla","Carnivora","Rodentia",
+  "Rodentia","Carnivora","Carnivora","Rodentia",
+  "Rodentia","Rodentia","Rodentia","Carnivora",
+  "Carnivora","Carnivora","Rodentia","Rodentia",
+  "Carnivora","Carnivora","Rodentia","Rodentia",
+  "Rodentia","Rodentia","Carnivora","Rodentia",
+  "Rodentia","Rodentia","Carnivora","Artiodactyla",
+  "Artiodactyla","Rodentia","Artiodactyla","Artiodactyla",
+  "Artiodactyla","Artiodactyla","Rodentia","Rodentia",
+  "Rodentia","Rodentia","Carnivora","Carnivora",
+  "Artiodactyla","Eulipotyphla","Rodentia","Rodentia",
+  "Rodentia","Carnivora","Carnivora","Rodentia",
+  "Rodentia","Rodentia","Rodentia","Carnivora",
+  "Rodentia","Rodentia","Carnivora","Carnivora",
+  "Carnivora","Carnivora","Carnivora","Carnivora","Carnivora"))
+merge(data, orders) -> data
+
+sapply(levels(data$HostOrder), 
+       function(ord) sapply(1:max(MU), function(c) sum((subset(data,HostOrder==ord)$Host %>% unique()) %in% gsub("_"," ",names(MU[MU==c])))/length(subset(data,HostOrder==ord)$Host %>% unique()))
+) %>% t
+
+## what about if we look structured by parasites?
+## Look first by phylum
+sapply(levels(data$ParPhylum), function(phy) sapply(1:38, function(c) sum((subset(data,ParPhylum==phy)$ParasiteCorrectedName %>% unique()) %in% gsub("_"," ",names(MU[MU==c])))/length(subset(data,ParPhylum==phy)$ParasiteCorrectedName %>% unique()))) %>% t
+      
+## then by Class
+sapply(levels(data$ParClass), function(class) sapply(1:38, function(c) sum((subset(data,ParClass==class)$ParasiteCorrectedName %>% unique()) %in% gsub("_"," ",names(MU[MU==c])))/length(subset(data,ParClass==class)$ParasiteCorrectedName %>% unique()))) %>% t
+
 
 ```
 
-All of the results so far seem to point towards a strong role for the host phylogeny in structuring host-parasite associations.
-We can get one final piece of evidence for this by employing the method of Hadfield et al. (2014).
-This is an extension of the method of Ives and Godfray that uses a Bayesian Markov chain Monte Carlo approach to directly estimate the contribution of several different sources of variance to the observed covariance between pairs of interacting hosts and parasites.
-In particular, it allows us to estimate the contribution of host phylogeny, parasite phylogeny, host evolutionary interactions, parasite evolutionary interactions, and host-parasite coevolution, as well as estimating the contributions of variation that are not due to the phylogeny. 
+For the Primate dataset, we detected 20 distinct host-parasite clusters, with an the overall modularity score of 0.53.
+There are many very small modules, comprising a single host-parasite pair.
+The largest module (of 23 species), contains 18 species of Great Apes (both *Pan* species), lesser apes, and Old and New World monkeys.
 
-```{r, eval=FALSE}
+```{r primate-module-graph, echo=FALSE, fig.height=8, fig.width=8, fig.cap="Host-parasite interaction network within the Primate dataset, broken into 20 distinct modules."}
+
+ndata <- primate_ndata
+# incidence data
+Y<-table(ndata$Host.species, ndata$Parasite.species, ndata$presence)[,,2]>0
+## change names to match the phylogeny
+rownames(Y) <- gsub(" ", "_", rownames(Y))
+colnames(Y) <- gsub(" ", "_", colnames(Y))
+
+# assign species to modules
+G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
+MU<-cluster_walktrap(G) ## identify clusters
+
+plot(MU,G,vertex.label="",vertex.size=2)
+```
+
+```{r, echo=FALSE, eval=FALSE}
+MU <- membership(MU)
+## sizes of each cluster
+sapply(1:max(MU), function(c) sum(MU==c))
+
+data <- subset(read.csv("GMPD_clean.csv"), HostOrder=="Primates")
+
+
+## what about if we look structured by parasites?
+## Look first by phylum
+sapply(levels(data$ParPhylum), function(phy) sapply(1:max(MU), function(c) sum((subset(data,ParPhylum==phy)$ParasiteCorrectedName %>% unique()) %in% gsub("_"," ",names(MU[MU==c])))/length(subset(data,ParPhylum==phy)$ParasiteCorrectedName %>% unique()))) %>% t
+      
+## then by Class
+sapply(levels(data$ParClass), function(class) sapply(1:max(MU), function(c) sum((subset(data,ParClass==class)$ParasiteCorrectedName %>% unique()) %in% gsub("_"," ",names(MU[MU==c])))/length(subset(data,ParClass==class)$ParasiteCorrectedName %>% unique()))) %>% t
+
+
+```
+
+Looking across the datasets, there was always a very strong and significant negative correlation between comembership in a module and phylogenetic distance for hosts, indicating that more closely related hosts are more likely to end up in the same module. 
+However, parasite relatedness was never significantly related to membership in a module. 
+
+```{r}
+res <- readRDS("Krasnov_results.RDS")
+res
+```
+
+
+All of the results so far seem to point towards a strong role for the host phylogeny in structuring host-parasite associations.
+
+
+```{r, echo=FALSE, eval=FALSE}
 res <- readRDS("mI_MCMCb.RDS")
 ## Another analysis to potentially run: we can compare the host ranges of two parasites
 ## by computing the phylogenetic distance between the hosts of two parasites. The smaller
@@ -737,6 +960,10 @@ res <- readRDS("mI_MCMCb.RDS")
 ## host ranges, but whose hosts don't overlap at all (e.g., the parasitize related, but
 ## not identical, hosts). You can do a similar analysis, comparing the PD between the 
 ## parasites that infect different hosts
+
+We can get one final piece of evidence for this by employing the method of Hadfield et al. (2014).
+This is an extension of the method of Ives and Godfray that uses a Bayesian Markov chain Monte Carlo approach to directly estimate the contribution of several different sources of variance to the observed covariance between pairs of interacting hosts and parasites.
+In particular, it allows us to estimate the contribution of host phylogeny, parasite phylogeny, host evolutionary interactions, parasite evolutionary interactions, and host-parasite coevolution, as well as estimating the contributions of variation that are not due to the phylogeny. 
 
 
 ```
