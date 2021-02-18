@@ -494,8 +494,8 @@ saveRDS(ob, file="IvesGodfray_full_primate_bootstraps.RDS")
 
 ## Use the simplified version of Hadfield et al. 2014
 if(!file.exists("IvesGodfray_simplified_results.RDS")) {
-  ives_results <- array(NA, dim=c(6,6))
-  colnames(ives_results) <- c("dataset", "model", "value", "L1-pval", "L2-pval", "H-pval")
+  ives_results <- array(NA, dim=c(3,5))
+  colnames(ives_results) <- c("dataset", "value", "L1-pval", "L2-pval", "H-pval")
   for (mod in 1:3) {
     if (mod==1) {
       dataset <- "GMPD"
@@ -548,16 +548,11 @@ if(!file.exists("IvesGodfray_simplified_results.RDS")) {
     # invV <- kronecker(chol2inv(chol(as.matrix(pt))),chol2inv(chol(as.matrix(ht))))
     # abase<-solve((t(U)%*%invV%*%U),((t(U)%*%invV%*%A)))   
     # MSEBase<-(t(A-U%*%abase)%*%invV%*%(A-U%*%abase))/(length(A)-1)  
-    ## MSEstar metric of Ives & Godfray under a star phylogeny (see code for pblm.R)
-    MSEstar<-cov(as.matrix(as.vector(Y-mean(Y)))) %>% as.numeric()
-    
+     
     brown.boot.1<-1:1000
     brown.boot.2<-1:1000
     brown.boot.3<-1:1000
-    star.boot.1<-1:1000
-    star.boot.2<-1:1000
-    star.boot.3<-1:1000
-    
+
     ##################
     ## Permutations ##
     ##################
@@ -566,21 +561,17 @@ if(!file.exists("IvesGodfray_simplified_results.RDS")) {
       Y2<-apply(Y, 2, sample)                     # Legendre permtations
       iD<-t(hte)%*%(Y2-mean(Y2))%*%pte            # Ives D matrix
       brown.boot.1[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
-      star.boot.1[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
-      
+
       Y2<-apply(Y, 1, sample)                     # Legendre permtations
       iD<-t(pte)%*%(Y2-mean(Y2))%*%hte            # Ives D matrix
       brown.boot.2[j]<-sum(diag(t(iD)%*%iD))              # Ives metric (MSEb)
-      star.boot.2[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
-      
+
       Y2<-Y[sample(1:nrow(Y)),sample(1:ncol(Y))]  # Hommola sampling
       iD<-t(hte)%*%(Y2-mean(Y2))%*%pte
       brown.boot.3[j]<-sum(diag(t(iD)%*%iD)) 
-      star.boot.3[j] <-cov(as.matrix(as.vector(Y2-mean(Y2)))) %>% as.numeric() # Ives metric MSEstar
-      
+
     }
-    ives_results[2*mod-1,] <- c(dataset, "brown", MSEbrown, sum(MSEbrown > brown.boot.1)/1000, sum(MSEbrown > brown.boot.2)/1000, sum(MSEbrown > brown.boot.3)/1000)
-    ives_results[2*mod,] <- c(dataset, "star", MSEstar, sum(MSEstar > star.boot.1)/1000, sum(MSEstar > star.boot.2)/1000, sum(MSEstar > star.boot.3)/1000)
+    ives_results[mod,] <- c(dataset, MSEbrown, sum(MSEbrown > brown.boot.1)/1000, sum(MSEbrown > brown.boot.2)/1000, sum(MSEbrown > brown.boot.3)/1000)
     
   }
   saveRDS(ives_results, file="IvesGodfray_simplified_results.RDS")
