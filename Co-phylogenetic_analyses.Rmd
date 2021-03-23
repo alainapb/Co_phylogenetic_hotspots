@@ -794,7 +794,14 @@ colnames(Y) <- gsub(" ", "_", colnames(Y))
 G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
 MU<-cluster_walktrap(G) ## identify clusters
 
-plot(MU,G,vertex.label="",vertex.size=2)
+V(G)$color <- membership(MU)
+G$palette <- rainbow(length(MU))
+G$palette[2] <- "#6B00FF"
+G$palette[29] <- "#FF2800"
+
+set.seed(31668)
+plot(MU,G,vertex.label="",vertex.size=2, layout=layout_nicely,mark.col=unname(sapply(G$palette,function(col) paste0(col,"4D"))),mark.border=unname(sapply(G$palette,function(col) paste0(col,"4D"))))
+
 ```
 
 ```{r, echo=FALSE, eval=FALSE}
@@ -841,7 +848,11 @@ colnames(Y) <- gsub(" ", "_", colnames(Y))
 G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
 MU<-cluster_walktrap(G) ## identify clusters
 
-plot(MU,G,vertex.label="",vertex.size=2)
+set.seed(63442)
+V(G)$color <- membership(MU)
+G$palette <- rainbow(length(MU))
+plot(MU,G,vertex.label="",vertex.size=2, layout=layout_nicely)
+
 ```
 
 ```{r, echo=FALSE, eval=FALSE}
@@ -909,7 +920,13 @@ colnames(Y) <- gsub(" ", "_", colnames(Y))
 G<-graph_from_incidence_matrix(Y) ## create a bipartite igraph graph from the incidence matrix
 MU<-cluster_walktrap(G) ## identify clusters
 
-plot(MU,G,vertex.label="",vertex.size=2)
+set.seed(61032)
+V(G)$color <- membership(MU)
+G$palette <- rainbow(length(MU))
+G$palette[2] <- "#3300FF"
+G$palette[15] <- "#FF4D00"
+plot(MU,G,vertex.label="",vertex.size=2, layout=layout_nicely,mark.col=unname(sapply(G$palette,function(col) paste0(col,"4D"))),mark.border=unname(sapply(G$palette,function(col) paste0(col,"4D"))))
+  
 ```
 
 ```{r, echo=FALSE, eval=FALSE}
